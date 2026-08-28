@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "sHome 로그인",
+        "description": "sHome 앱 계정으로 로그인합니다. {note}",
+        "data": {
+          "user_id": "아이디 (전화번호 등)",
+          "password": "비밀번호",
+          "base_url": "API 서버 (기본값 유지 권장)",
+          "language": "언어"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "로그인 실패: 아이디/비밀번호를 확인하세요. (비밀번호 5회 오류 시 10분 잠금)",
+      "cannot_connect": "서버에 연결할 수 없습니다."
+    },
+    "abort": {
+      "already_configured": "이미 등록된 계정입니다."
+    }
+  }
+}

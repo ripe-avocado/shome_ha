@@ -1,0 +1,170 @@
+"""Sensor platform for sHome (에너지: 전기/수도/가스/온수/난방, 관리비)."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
+from homeassistant.const import (
+    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+    CONCENTRATION_PARTS_PER_MILLION,
+    PERCENTAGE,
+    UnitOfEnergy,
+    UnitOfTemperature,
+    UnitOfVolume,
+)
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from . import ShomeConfigEntry
+from .const import DOMAIN
+from .coordinator import ShomeCoordinator
+
+# 실내환경(legacy) 측정 항목: (json key, 이름, unit, device_class)
+ENV_METRICS = [
+    ("temperature", "온도", UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE),
+    ("humidity", "습도", PERCENTAGE, SensorDeviceClass.HUMIDITY),
+    ("co2", "CO2", CONCENTRATION_PARTS_PER_MILLION, SensorDeviceClass.CO2),
+    ("fineDust", "미세먼지", CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, SensorDeviceClass.PM25),
+]
+
+
+@dataclass(frozen=True)
+class EnergyKind:
+    name: str
+    unit: str | None
+    device_class: SensorDeviceClass | None
+    icon: str
+
+
+# energyType (contents/norems/energy) 매핑
+ENERGY_KINDS: dict[str, EnergyKind] = {
+    "1": EnergyKind("전기 사용량", UnitOfEnergy.KILO_WATT_HOUR, SensorDeviceClass.ENERGY, "mdi:flash"),
+    "2": EnergyKind("수도 사용량", UnitOfVolume.CUBIC_METERS, SensorDeviceClass.WATER, "mdi:water"),
+    "3": EnergyKind("가스 사용량", UnitOfVolume.CUBIC_METERS, SensorDeviceClass.GAS, "mdi:fire"),
+    "4": EnergyKind("온수 사용량", UnitOfVolume.CUBIC_METERS, None, "mdi:water-thermometer"),
+    "5": EnergyKind("난방 사용량", None, None, "mdi:radiator"),
+}
+
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ShomeConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
+    coordinator = entry.runtime_data
+    entities: list[SensorEntity] = []
+    energy = coordinator.data.get("energy") or {}
+    for item in energy.get("energyList", []) or []:
+        etype = str(item.get("energyType"))
+        if etype in ENERGY_KINDS:
+            entities.append(ShomeEnergySensor(coordinator, etype))
+
+    # 실내환경 센서 (legacy 세대, 실험적): temperature/humidity/co2/fineDust 필드가 있는 기기
+    for dev in coordinator.data.get("legacy", []) or []:
+        if not isinstance(dev, dict):
+            continue
+        thng = dev.get("thngId") or dev.get("endpoint")
+        if not thng:
+            continue
+        for key, label, unit, dclass in ENV_METRICS:
+            if dev.get(key) not in (None, ""):
+                entities.append(
+                    ShomeLegacyEnvSensor(coordinator, str(thng), dev.get("nickname"),
+                                         key, label, unit, dclass)
+                )
+    async_add_entities(entities)
+
+
+class ShomeEnergySensor(CoordinatorEntity[ShomeCoordinator], SensorEntity):
+    """월별 사용량 (최신월 usageAmount)."""
+
+    _attr_has_entity_name = True
+    _attr_state_class = SensorStateClass.TOTAL
+
+    def __init__(self, coordinator: ShomeCoordinator, etype: str) -> None:
+        super().__init__(coordinator)
+        self._etype = etype
+        kind = ENERGY_KINDS[etype]
+        self._attr_name = kind.name
+        self._attr_native_unit_of_measurement = kind.unit
+        self._attr_device_class = kind.device_class
+        self._attr_icon = kind.icon
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_energy_{etype}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{coordinator.entry.entry_id}_energy")},
+            name="sHome 에너지",
+            manufacturer="Samsung SDS / Zigbang",
+        )
+
+    def _item(self) -> dict[str, Any]:
+        energy = self.coordinator.data.get("energy") or {}
+        for it in energy.get("energyList", []) or []:
+            if str(it.get("energyType")) == self._etype:
+                return it
+        return {}
+
+    def _latest_month(self) -> dict[str, Any]:
+        months = self._item().get("monthList") or []
+        return months[-1] if months else {}
+
+    @property
+    def native_value(self) -> float | None:
+        v = self._latest_month().get("usageAmount")
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        m = self._latest_month()
+        attrs: dict[str, Any] = {}
+        if m.get("year") and m.get("month"):
+            attrs["기준월"] = f"{m['year']}-{int(m['month']):02d}"
+        if m.get("prevUsageAmount") is not None:
+            attrs["전월"] = m["prevUsageAmount"]
+        if m.get("expectUsageAmount") is not None:
+            attrs["예상"] = m["expectUsageAmount"]
+        return attrs
+
+
+class ShomeLegacyEnvSensor(CoordinatorEntity[ShomeCoordinator], SensorEntity):
+    """실내환경 센서 (legacy 세대) — 온도/습도/CO2/미세먼지. ⚠ 실험적·미검증(레거시 세대 테스트 필요)."""
+
+    _attr_has_entity_name = True
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator: ShomeCoordinator, thng_id: str, nickname: str | None,
+                 key: str, label: str, unit: str, dclass) -> None:
+        super().__init__(coordinator)
+        self._thng = thng_id
+        self._key = key
+        self._attr_name = label
+        self._attr_native_unit_of_measurement = unit
+        self._attr_device_class = dclass
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_env_{thng_id}_{key}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{coordinator.entry.entry_id}_env_{thng_id}")},
+            name=nickname or f"실내환경 {thng_id}",
+            manufacturer="Samsung SDS / Zigbang",
+            model="environment-sensor",
+        )
+
+    def _dev(self) -> dict:
+        for d in self.coordinator.data.get("legacy", []) or []:
+            if isinstance(d, dict) and str(d.get("thngId") or d.get("endpoint")) == self._thng:
+                return d
+        return {}
+
+    @property
+    def native_value(self) -> float | None:
+        v = self._dev().get(self._key)
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None

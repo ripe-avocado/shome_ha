@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "sHome login",
+        "description": "Log in with your sHome app account. {note}",
+        "data": {
+          "user_id": "ID (phone number, etc.)",
+          "password": "Password",
+          "base_url": "API server (keep default)",
+          "language": "Language"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Login failed: check your ID/password. (5 wrong attempts locks the account for 10 min)",
+      "cannot_connect": "Cannot connect to the server."
+    },
+    "abort": {
+      "already_configured": "This account is already configured."
+    }
+  }
+}

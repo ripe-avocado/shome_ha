@@ -1,0 +1,33 @@
+# APK 원본 / 디컴파일 산출물 (Samsung SDS/Zigbang 저작물 — 공개 금지)
+apk/
+jadx_out/
+recon/
+research/
+*.apk
+*.xapk
+*.dex
+
+# 리버싱 작업 노트 (PROTOCOL.md, 프로브 등). 공개하지 않는다
+notes/
+
+# 캡처·덤프
+capture/
+*.har
+*.pcap
+*.pcapng
+*.log
+
+# 자격증명
+.env
+*credentials*.json
+*token*.json
+.shome_probe_device
+
+# 파이썬
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# macOS
+.DS_Store
