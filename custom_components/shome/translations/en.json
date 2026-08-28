@@ -28,7 +28,7 @@
           "scan_interval": "Polling interval (seconds)"
         },
         "data_description": {
-          "scan_interval": "How often to refresh device state from the cloud (5–600s)."
+          "scan_interval": "How often to refresh device state from the cloud (15–600s, recommended 30–60s). The integration already speeds up briefly right after you control a device (adaptive), so a low value is rarely needed. Setting it too low may trigger server-side rate limiting and get your account or the whole service blocked."
         }
       }
     }

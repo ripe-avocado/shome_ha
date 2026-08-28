@@ -19,7 +19,7 @@ CONF_LANGUAGE = "language"
 
 DEFAULT_SCAN_INTERVAL = 30            # seconds
 CONF_SCAN_INTERVAL = "scan_interval"
-MIN_SCAN_INTERVAL = 5
+MIN_SCAN_INTERVAL = 15
 MAX_SCAN_INTERVAL = 600
 
 # 적응형 폴링: 제어 직후 잠깐 빠르게 재조회

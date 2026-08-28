@@ -17,6 +17,8 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     FAST_SCAN_CYCLES,
     FAST_SCAN_INTERVAL,
+    MAX_SCAN_INTERVAL,
+    MIN_SCAN_INTERVAL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,6 +39,8 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, api: ShomeApi) -> None:
         interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        # 저장된 값이 범위를 벗어나도 안전하게 클램프 (서버 과부하 방지)
+        interval = max(MIN_SCAN_INTERVAL, min(MAX_SCAN_INTERVAL, int(interval)))
         self._normal_interval = interval
         self._fast_remaining = 0
         super().__init__(
