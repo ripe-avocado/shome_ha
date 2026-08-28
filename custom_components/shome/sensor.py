@@ -43,15 +43,14 @@ class EnergyKind:
     icon: str
 
 
-# energyType (contents/norems/energy) 매핑
 # energyType 매핑 (앱 shnEnergyReportActivity.O 기준):
-#   1=전기 kWh, 2=수도 ㎥(앱 표기 ton), 3=가스 ㎥, 4=난방 ㎥, 5=온수 MJ
+#   1=전기 kWh, 2=수도 ㎥(≈톤), 3=가스 ㎥, 4=난방 ㎥, 5=온수 ㎥(≈톤; 월패드는 물을 톤으로 표기)
 ENERGY_KINDS: dict[str, EnergyKind] = {
     "1": EnergyKind("전기 사용량", UnitOfEnergy.KILO_WATT_HOUR, SensorDeviceClass.ENERGY, "mdi:flash"),
     "2": EnergyKind("수도 사용량", UnitOfVolume.CUBIC_METERS, SensorDeviceClass.WATER, "mdi:water"),
     "3": EnergyKind("가스 사용량", UnitOfVolume.CUBIC_METERS, SensorDeviceClass.GAS, "mdi:fire"),
     "4": EnergyKind("난방 사용량", UnitOfVolume.CUBIC_METERS, None, "mdi:radiator"),
-    "5": EnergyKind("온수 사용량", UnitOfEnergy.MEGA_JOULE, None, "mdi:water-thermometer"),
+    "5": EnergyKind("온수 사용량", UnitOfVolume.CUBIC_METERS, SensorDeviceClass.WATER, "mdi:water-thermometer"),
 }
 
 
