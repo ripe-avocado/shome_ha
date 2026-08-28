@@ -7,7 +7,7 @@ from typing import Any
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, OPTIMISTIC_HOLD_SEC
 from .coordinator import ShomeCoordinator
 
 
@@ -57,7 +57,7 @@ class ShomeDeviceEntity(CoordinatorEntity[ShomeCoordinator]):
         del self._pending[attr]          # 만료 → 실제 폴링값 신뢰
         return poll_val
 
-    def _set_pending(self, attr: str, value, ttl: float = 12.0) -> None:
+    def _set_pending(self, attr: str, value, ttl: float = OPTIMISTIC_HOLD_SEC) -> None:
         self._pending[attr] = (str(value), time.monotonic() + ttl)
 
     @property

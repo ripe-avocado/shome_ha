@@ -25,6 +25,8 @@ MAX_SCAN_INTERVAL = 600
 # 적응형 폴링: 제어 직후 잠깐 빠르게 재조회
 FAST_SCAN_INTERVAL = 3       # seconds
 FAST_SCAN_CYCLES = 4         # 제어 후 빠른 폴링 횟수
+# 제어 후 명령값 고정 시간(초). 짧을수록 월패드 경합(물리≠명령) 시 실제 상태로 빨리 정정.
+OPTIMISTIC_HOLD_SEC = 6
 
 # --- Device type path segments (v18 MHPS) --------------------------------
 DEV_LIGHT = "light"
