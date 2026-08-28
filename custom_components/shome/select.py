@@ -70,3 +70,4 @@ class ShomeHomeMode(CoordinatorEntity[ShomeCoordinator], SelectEntity):
         hm = self.coordinator.data.setdefault("home_mode", {})
         hm["state"] = str(res.get("state", code)) if isinstance(res, dict) else code
         self.async_write_ha_state()
+        self.coordinator.activate_fast_poll()

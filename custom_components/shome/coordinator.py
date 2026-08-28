@@ -7,11 +7,17 @@ from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import ShomeApi, ShomeAuthError, ShomeConnectionError
-from .const import ALL_STATE_TYPES, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+from .const import (
+    ALL_STATE_TYPES,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
+    FAST_SCAN_CYCLES,
+    FAST_SCAN_INTERVAL,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,6 +37,8 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, api: ShomeApi) -> None:
         interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        self._normal_interval = interval
+        self._fast_remaining = 0
         super().__init__(
             hass,
             _LOGGER,
@@ -123,6 +131,13 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             data["energy"] = self._energy_cache
             data["expense"] = self._expense_cache
 
+            # 적응형 폴링: 제어 직후 몇 회는 빠르게, 이후 평상 주기로 복귀
+            if self._fast_remaining > 0:
+                self._fast_remaining -= 1
+                self.update_interval = timedelta(seconds=FAST_SCAN_INTERVAL)
+            else:
+                self.update_interval = timedelta(seconds=self._normal_interval)
+
             return data
 
         except ShomeAuthError as err:
@@ -136,3 +151,10 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             raise UpdateFailed(str(err)) from err
         except ShomeConnectionError as err:
             raise UpdateFailed(str(err)) from err
+
+    @callback
+    def activate_fast_poll(self, cycles: int = FAST_SCAN_CYCLES) -> None:
+        """제어 직후 호출 — 잠깐 빠른 주기로 재조회해 외부/연쇄 변화를 빨리 반영."""
+        self._fast_remaining = max(self._fast_remaining, cycles)
+        self.update_interval = timedelta(seconds=FAST_SCAN_INTERVAL)
+        self.hass.async_create_task(self.async_request_refresh())

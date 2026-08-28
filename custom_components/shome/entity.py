@@ -53,3 +53,5 @@ class ShomeDeviceEntity(CoordinatorEntity[ShomeCoordinator]):
         cur.update({k: v for k, v in monitoring.items() if v is not None})
         bucket[addr] = cur
         self.async_write_ha_state()
+        # 제어 직후 잠깐 빠른 폴링으로 연쇄/외부 변화 반영
+        self.coordinator.activate_fast_poll()

@@ -99,8 +99,8 @@ class ShomeLegacyConcent(CoordinatorEntity[ShomeCoordinator], SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.coordinator.api.legacy_concent_onoff(self._thng, True)
-        await self.coordinator.async_request_refresh()
+        self.coordinator.activate_fast_poll()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.api.legacy_concent_onoff(self._thng, False)
-        await self.coordinator.async_request_refresh()
+        self.coordinator.activate_fast_poll()

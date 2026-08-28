@@ -22,6 +22,10 @@ CONF_SCAN_INTERVAL = "scan_interval"
 MIN_SCAN_INTERVAL = 5
 MAX_SCAN_INTERVAL = 600
 
+# 적응형 폴링: 제어 직후 잠깐 빠르게 재조회
+FAST_SCAN_INTERVAL = 3       # seconds
+FAST_SCAN_CYCLES = 4         # 제어 후 빠른 폴링 횟수
+
 # --- Device type path segments (v18 MHPS) --------------------------------
 DEV_LIGHT = "light"
 DEV_DIMMING = "dimming"
