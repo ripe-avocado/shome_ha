@@ -7,8 +7,7 @@
         "data": {
           "user_id": "ID (phone number, etc.)",
           "password": "Password",
-          "base_url": "API server (keep default)",
-          "language": "Language"
+          "base_url": "API server (keep default)"
         }
       }
     },

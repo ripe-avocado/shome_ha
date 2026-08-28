@@ -50,7 +50,7 @@ class ShomeConfigFlow(ConfigFlow, domain=DOMAIN):
             user_id = user_input[CONF_USER_ID].strip()
             password = user_input[CONF_PASSWORD]
             base_url = user_input.get(CONF_BASE_URL, DEFAULT_BASE_URL).strip() or DEFAULT_BASE_URL
-            language = user_input.get(CONF_LANGUAGE, DEFAULT_LANGUAGE)
+            language = DEFAULT_LANGUAGE  # 한국 아파트 표준(KOR). 필요 시 옵션/재설정으로 확장 가능
             # stable per-install device id (android_id slot)
             device_id = uuid.uuid4().hex[:16]
 
@@ -90,9 +90,6 @@ class ShomeConfigFlow(ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_USER_ID): str,
                 vol.Required(CONF_PASSWORD): str,
                 vol.Optional(CONF_BASE_URL, default=DEFAULT_BASE_URL): str,
-                vol.Optional(CONF_LANGUAGE, default=DEFAULT_LANGUAGE): vol.In(
-                    ["KOR", "ENG", "CHN", "TWN"]
-                ),
             }
         )
         return self.async_show_form(
