@@ -77,8 +77,8 @@ class ShomeBoilerBl(ShomeDeviceEntity, ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         power = "1" if hvac_mode == HVACMode.HEAT else "0"
+        self._optimistic(("powerRoom", power))
         res = await self.coordinator.api.set_boiler_bl_power(self._address, power, self._water())
-        self._set_pending("powerRoom", power)
         self._apply(res)
 
     async def async_turn_on(self) -> None:
@@ -91,10 +91,10 @@ class ShomeBoilerBl(ShomeDeviceEntity, ClimateEntity):
         temp = kwargs.get("temperature")
         if temp is None:
             return
+        self._optimistic(("heatingDesireRoom", int(temp)))
         res = await self.coordinator.api.set_one_function(
             self._dtype, self._address, "heatingdesireroom", str(int(temp))
         )
-        self._set_pending("heatingDesireRoom", int(temp))
         self._apply(res)
 
 
@@ -127,8 +127,8 @@ class ShomeBoilerBr(ShomeDeviceEntity, ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         power = "1" if hvac_mode == HVACMode.HEAT else "0"
+        self._optimistic(("power", power))
         res = await self.coordinator.api.set_power(self._dtype, self._address, power)
-        self._set_pending("power", power)
         self._apply(res)
 
     async def async_turn_on(self) -> None:
@@ -141,10 +141,10 @@ class ShomeBoilerBr(ShomeDeviceEntity, ClimateEntity):
         temp = kwargs.get("temperature")
         if temp is None:
             return
+        self._optimistic(("heatingDesireRoom", int(temp)))
         res = await self.coordinator.api.set_one_function(
             self._dtype, self._address, "heatingdesireroom", str(int(temp))
         )
-        self._set_pending("heatingDesireRoom", int(temp))
         self._apply(res)
 
 
@@ -177,8 +177,8 @@ class ShomeAircon(ShomeDeviceEntity, ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         power = "1" if hvac_mode == HVACMode.COOL else "0"
+        self._optimistic(("power", power))
         res = await self.coordinator.api.set_power(self._dtype, self._address, power)
-        self._set_pending("power", power)
         self._apply(res)
 
     async def async_turn_on(self) -> None:
@@ -191,8 +191,8 @@ class ShomeAircon(ShomeDeviceEntity, ClimateEntity):
         temp = kwargs.get("temperature")
         if temp is None:
             return
+        self._optimistic(("desireTemp", int(temp)))
         res = await self.coordinator.api.set_one_function(
             self._dtype, self._address, "desiretemp", str(int(temp))
         )
-        self._set_pending("desireTemp", int(temp))
         self._apply(res)

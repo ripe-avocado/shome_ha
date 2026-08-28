@@ -65,9 +65,12 @@ class ShomeHomeMode(CoordinatorEntity[ShomeCoordinator], SelectEntity):
         code = self._name_to_code(option)
         if code is None:
             return
-        res = await self.coordinator.api.set_home_mode(code)
-        # reflect immediately
+        # 즉시 UI 반영(optimistic) 후 API 호출
         hm = self.coordinator.data.setdefault("home_mode", {})
-        hm["state"] = str(res.get("state", code)) if isinstance(res, dict) else code
+        hm["state"] = code
         self.async_write_ha_state()
+        res = await self.coordinator.api.set_home_mode(code)
+        if isinstance(res, dict) and res.get("state"):
+            hm["state"] = str(res["state"])
+            self.async_write_ha_state()
         self.coordinator.activate_fast_poll()

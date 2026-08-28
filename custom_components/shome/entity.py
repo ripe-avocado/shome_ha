@@ -60,6 +60,13 @@ class ShomeDeviceEntity(CoordinatorEntity[ShomeCoordinator]):
     def _set_pending(self, attr: str, value, ttl: float = OPTIMISTIC_HOLD_SEC) -> None:
         self._pending[attr] = (str(value), time.monotonic() + ttl)
 
+    def _optimistic(self, *pairs) -> None:
+        """명령 즉시 UI 반영: (attr, value) 쌍들을 pending으로 걸고 바로 상태 기록.
+        API 호출을 기다리지 않으므로 누르는 즉시 스위치가 반응한다."""
+        for attr, value in pairs:
+            self._set_pending(attr, value)
+        self.async_write_ha_state()
+
     @property
     def available(self) -> bool:
         # 마지막 폴링 성공 여부에 묶지 않는다: 상태를 아는 기기는 available 유지
