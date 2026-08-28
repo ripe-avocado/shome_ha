@@ -65,8 +65,16 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         try:
             await self.api.async_ensure_token()
-            data: dict[str, Any] = {"devices": {}, "inventory": [], "home_mode": {},
-                                    "energy": None, "expense": None, "legacy": []}
+            # 이전 폴링의 기기 상태를 이어받아, 이번 사이클에 일시적으로 못 읽은 기기가
+            # "사용할 수 없음"으로 사라지지 않게 한다(제어 직후 전환 중 공백 방지).
+            prev = self.data or {}
+            data: dict[str, Any] = {
+                "devices": {k: dict(v) for k, v in (prev.get("devices") or {}).items()},
+                "inventory": prev.get("inventory") or [],
+                "home_mode": prev.get("home_mode") or {},
+                "energy": None, "expense": None,
+                "legacy": prev.get("legacy") or [],
+            }
 
             # --- LEGACY (구형 세대): MHPS가 아니면 통합 기기목록으로 열거 (실험적) ---
             if not self.api.is_mhps:
@@ -83,10 +91,12 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.present_types = []
                 return data
 
-            # device inventory (best-effort)
+            # device inventory (best-effort) — 실패 시 이전 값 유지
             try:
                 inv = await self.api.get_all_list()
-                data["inventory"] = inv.get("deviceList", []) if isinstance(inv, dict) else []
+                inv_list = inv.get("deviceList") if isinstance(inv, dict) else None
+                if inv_list:
+                    data["inventory"] = inv_list
             except ShomeConnectionError as err:
                 _LOGGER.debug("all_list failed: %s", err)
 
@@ -114,9 +124,11 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if full_scan:
                 self.present_types = list(data["devices"].keys())
 
-            # home mode
+            # home mode — 실패 시 이전 값 유지
             try:
-                data["home_mode"] = await self.api.get_home_mode()
+                hm = await self.api.get_home_mode()
+                if isinstance(hm, dict) and hm.get("modeList"):
+                    data["home_mode"] = hm
             except ShomeConnectionError:
                 pass
 

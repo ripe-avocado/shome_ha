@@ -62,7 +62,10 @@ class ShomeDeviceEntity(CoordinatorEntity[ShomeCoordinator]):
 
     @property
     def available(self) -> bool:
-        return super().available and bool(self._state)
+        # 마지막 폴링 성공 여부에 묶지 않는다: 상태를 아는 기기는 available 유지
+        # (제어 직후 빠른 폴링의 일시적 실패로 "사용할 수 없음"이 깜빡이는 것 방지).
+        # 이어받기(coordinator) 덕분에 _state는 일시 공백에도 유지된다.
+        return bool(self._state)
 
     def _apply(self, monitoring: dict[str, Any] | None) -> None:
         """Merge a control-response Monitoring into coordinator cache for snappy UI."""
