@@ -260,15 +260,6 @@ class ShomeApi:
     async def get_expense(self) -> dict:
         return await self._get_auth("v18/mhps/auth/contents/expense/towmond")
 
-    async def get_visit_all(self) -> dict:
-        return await self._get_auth("v18/mhps/auth/contents/visit/all_list")
-
-    async def get_visit_recently(self) -> dict:
-        return await self._get_auth("v18/mhps/auth/contents/visit/recently")
-
-    async def get_parcel_all(self) -> dict:
-        return await self._get_auth("v18/mhps/auth/contents/parcel/all")
-
     async def get_maindata(self) -> dict:
         return await self._get_auth("v18/mhps/auth/service/app/maindata")
 
