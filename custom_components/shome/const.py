@@ -17,7 +17,7 @@ CONF_BASE_URL = "base_url"
 CONF_DEVICE_ID = "device_id"          # mobileDeviceIdno (stable per install)
 CONF_LANGUAGE = "language"
 
-DEFAULT_SCAN_INTERVAL = 30            # seconds
+DEFAULT_SCAN_INTERVAL = 15            # seconds
 CONF_SCAN_INTERVAL = "scan_interval"
 MIN_SCAN_INTERVAL = 15
 MAX_SCAN_INTERVAL = 600
