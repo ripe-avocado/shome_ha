@@ -56,6 +56,9 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._poll_count = 0
         self._energy_ts = 0.0
         self._energy_cache = None
+        self._visit_ts = 0.0
+        self._visit_cache = None
+        self._visit_interval = 120.0  # 방문 이력은 2분마다
         self._expense_cache = None
         # 에너지/관리비는 월 단위 데이터 → 30분마다만 갱신
         self._energy_interval = 1800.0
@@ -74,6 +77,7 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "home_mode": prev.get("home_mode") or {},
                 "energy": None, "expense": None,
                 "legacy": prev.get("legacy") or [],
+                "visit": prev.get("visit"),
             }
 
             # --- LEGACY (구형 세대): MHPS가 아니면 통합 기기목록으로 열거 (실험적) ---
@@ -146,6 +150,15 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._energy_ts = now
             data["energy"] = self._energy_cache
             data["expense"] = self._expense_cache
+
+            # 방문 이력 — 2분마다 조회 (이벤트성이지만 과도한 폴링 방지)
+            if self._visit_cache is None or (now - self._visit_ts) >= self._visit_interval:
+                try:
+                    self._visit_cache = await self.api.get_visit_all()
+                    self._visit_ts = now
+                except ShomeConnectionError:
+                    pass
+            data["visit"] = self._visit_cache
 
             # 적응형 폴링: 제어 직후 몇 회는 빠르게, 이후 평상 주기로 복귀
             if self._fast_remaining > 0:

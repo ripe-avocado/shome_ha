@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from homeassistant.util import dt as dt_util
+
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -78,7 +80,57 @@ async def async_setup_entry(
                     ShomeLegacyEnvSensor(coordinator, str(thng), dev.get("nickname"),
                                          key, label, unit, dclass)
                 )
+    # 방문 이력 sensor (엔드포인트가 응답하면 생성; 미지원 단지는 visit=None → 생성 안 함)
+    if isinstance(coordinator.data.get("visit"), dict):
+        entities.append(ShomeVisitSensor(coordinator))
+
     async_add_entities(entities)
+
+
+class ShomeVisitSensor(CoordinatorEntity[ShomeCoordinator], SensorEntity):
+    """세대 현관 앞 방문 이력 — 최근 방문 시각(state) + 방문 목록(속성)."""
+
+    _attr_has_entity_name = True
+    _attr_name = "방문"
+    _attr_icon = "mdi:account-clock"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, coordinator: ShomeCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_visit"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, coordinator.entry.entry_id)},
+            name="sHome",
+            manufacturer="Samsung SDS / Zigbang",
+        )
+
+    def _list(self) -> list[dict]:
+        v = self.coordinator.data.get("visit") or {}
+        return v.get("visitList") or []
+
+    @property
+    def native_value(self):
+        items = self._list()
+        if not items:
+            return None
+        latest = items[0].get("date")
+        if not latest:
+            return None
+        dt = dt_util.parse_datetime(latest)
+        if dt and dt.tzinfo is None:
+            dt = dt.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
+        return dt
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        items = self._list()
+        return {
+            "방문_횟수": len(items),
+            "최근_방문": [
+                {"일시": it.get("date"), "구분": it.get("type"), "횟수": it.get("count")}
+                for it in items[:10]
+            ],
+        }
 
 
 class ShomeEnergySensor(CoordinatorEntity[ShomeCoordinator], SensorEntity):
