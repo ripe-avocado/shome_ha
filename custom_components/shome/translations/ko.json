@@ -19,5 +19,18 @@
     "abort": {
       "already_configured": "이미 등록된 계정입니다."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "옵션",
+        "data": {
+          "scan_interval": "폴링 주기(초)"
+        },
+        "data_description": {
+          "scan_interval": "클라우드에서 기기 상태를 갱신하는 간격 (5~600초). 짧을수록 외부 변화 반영이 빠르지만 API 호출이 늘어납니다."
+        }
+      }
+    }
   }
 }

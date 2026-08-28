@@ -6,12 +6,22 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
+from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import ShomeApi, ShomeAuthError, ShomeConnectionError
 from .const import (
     CONF_BASE_URL,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
+    MAX_SCAN_INTERVAL,
+    MIN_SCAN_INTERVAL,
     CONF_DEVICE_ID,
     CONF_LANGUAGE,
     CONF_PASSWORD,
@@ -26,6 +36,11 @@ class ShomeConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for sHome."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> "ShomeOptionsFlow":
+        return ShomeOptionsFlow()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -86,3 +101,22 @@ class ShomeConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
             description_placeholders={"note": getattr(self, "_auth_message", "")},
         )
+
+
+class ShomeOptionsFlow(OptionsFlow):
+    """폴링 주기 등 옵션."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+        current = self.config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        schema = vol.Schema(
+            {
+                vol.Optional(CONF_SCAN_INTERVAL, default=current): vol.All(
+                    vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL, max=MAX_SCAN_INTERVAL)
+                ),
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=schema)
