@@ -63,20 +63,18 @@ class ShomeFan(ShomeDeviceEntity, FanEntity):
             await self.async_turn_off()
             return
         value = percentage_to_ordered_list_item(FAN_SPEEDS, percentage)
-        self._optimistic(("flowRate", value), ("power", "1"))
-        res = await self.coordinator.api.set_one_function(self._dtype, self._address, "flowrate", value)
-        self._apply(res)
+        self._control(
+            lambda: self.coordinator.api.set_one_function(self._dtype, self._address, "flowrate", value),
+            [("flowRate", value), ("power", "1")], verify=("flowRate", value))
 
     async def async_turn_on(
         self, percentage: int | None = None, preset_mode: str | None = None, **kwargs: Any
     ) -> None:
-        self._optimistic(("power", "1"))
-        res = await self.coordinator.api.set_power(self._dtype, self._address, "1")
-        self._apply(res)
+        self._control(lambda: self.coordinator.api.set_power(self._dtype, self._address, "1"),
+                      [("power", "1")], verify=("power", "1"))
         if percentage:
             await self.async_set_percentage(percentage)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        self._optimistic(("power", "0"))
-        res = await self.coordinator.api.set_power(self._dtype, self._address, "0")
-        self._apply(res)
+        self._control(lambda: self.coordinator.api.set_power(self._dtype, self._address, "0"),
+                      [("power", "0")], verify=("power", "0"))

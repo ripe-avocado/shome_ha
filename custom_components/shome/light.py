@@ -59,14 +59,12 @@ class ShomeOnOffLight(ShomeDeviceEntity, LightEntity):
         return None if p is None else str(p) == "1"
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        self._optimistic(("power", "1"))
-        res = await self.coordinator.api.set_power(self._dtype, self._address, "1")
-        self._apply(res)
+        self._control(lambda: self.coordinator.api.set_power(self._dtype, self._address, "1"),
+                      [("power", "1")], verify=("power", "1"))
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        self._optimistic(("power", "0"))
-        res = await self.coordinator.api.set_power(self._dtype, self._address, "0")
-        self._apply(res)
+        self._control(lambda: self.coordinator.api.set_power(self._dtype, self._address, "0"),
+                      [("power", "0")], verify=("power", "0"))
 
 
 class ShomeDimmingLight(ShomeDeviceEntity, LightEntity):
@@ -94,17 +92,16 @@ class ShomeDimmingLight(ShomeDeviceEntity, LightEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         if ATTR_BRIGHTNESS in kwargs:
             level = max(1, round(kwargs[ATTR_BRIGHTNESS] / 255 * DIM_MAX))
-            self._optimistic(("level", level), ("power", "1"))
-            res = await self.coordinator.api.set_function(self._dtype, self._address, str(level))
+            self._control(
+                lambda: self.coordinator.api.set_function(self._dtype, self._address, str(level)),
+                [("level", level), ("power", "1")], verify=("level", level))
         else:
-            self._optimistic(("power", "1"))
-            res = await self.coordinator.api.set_power(self._dtype, self._address, "1")
-        self._apply(res)
+            self._control(lambda: self.coordinator.api.set_power(self._dtype, self._address, "1"),
+                          [("power", "1")], verify=("power", "1"))
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        self._optimistic(("power", "0"))
-        res = await self.coordinator.api.set_power(self._dtype, self._address, "0")
-        self._apply(res)
+        self._control(lambda: self.coordinator.api.set_power(self._dtype, self._address, "0"),
+                      [("power", "0")], verify=("power", "0"))
 
 
 class ShomeSensitiveLight(ShomeDeviceEntity, LightEntity):
@@ -131,14 +128,12 @@ class ShomeSensitiveLight(ShomeDeviceEntity, LightEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         if ATTR_EFFECT in kwargs and kwargs[ATTR_EFFECT] in SJM_MODES_REV:
             mode = SJM_MODES_REV[kwargs[ATTR_EFFECT]]
-            self._optimistic(("mode", mode))
-            res = await self.coordinator.api.set_function(self._dtype, self._address, mode)
+            self._control(lambda: self.coordinator.api.set_function(self._dtype, self._address, mode),
+                          [("mode", mode)], verify=("mode", mode))
         else:
-            self._optimistic(("power", "1"))
-            res = await self.coordinator.api.set_power(self._dtype, self._address, "1")
-        self._apply(res)
+            self._control(lambda: self.coordinator.api.set_power(self._dtype, self._address, "1"),
+                          [("power", "1")], verify=("power", "1"))
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        self._optimistic(("power", "0"), ("mode", "0"))
-        res = await self.coordinator.api.set_power(self._dtype, self._address, "0")
-        self._apply(res)
+        self._control(lambda: self.coordinator.api.set_power(self._dtype, self._address, "0"),
+                      [("power", "0")], verify=("power", "0"))

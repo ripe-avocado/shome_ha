@@ -45,10 +45,10 @@ class ShomeCurtain(ShomeDeviceEntity, CoverEntity):
         return None if p is None else str(p) == "0"
 
     async def async_open_cover(self, **kwargs: Any) -> None:
-        self._optimistic(("power", "1")); self._apply(await self.coordinator.api.set_power(self._dtype, self._address, "1"))
+        self._control(lambda: self.coordinator.api.set_power(self._dtype, self._address, "1"), [("power", "1")], verify=("power", "1"))
 
     async def async_close_cover(self, **kwargs: Any) -> None:
-        self._optimistic(("power", "0")); self._apply(await self.coordinator.api.set_power(self._dtype, self._address, "0"))
+        self._control(lambda: self.coordinator.api.set_power(self._dtype, self._address, "0"), [("power", "0")], verify=("power", "0"))
 
     async def async_stop_cover(self, **kwargs: Any) -> None:
-        self._optimistic(("power", "2")); self._apply(await self.coordinator.api.set_power(self._dtype, self._address, "2"))
+        self._control(lambda: self.coordinator.api.set_power(self._dtype, self._address, "2"), [("power", "2")])

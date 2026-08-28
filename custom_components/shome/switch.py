@@ -54,11 +54,10 @@ class ShomeOutSwitch(ShomeDeviceEntity, SwitchEntity):
         return str(v) if v in ("0", "1") else "1"
 
     async def _set(self, jm00: str) -> None:
-        self._optimistic(("jm00", jm00))
-        res = await self.coordinator.api.set_outswitch(
-            self._address, jm00, self._preserve("gv01"), self._preserve("fe01")
-        )
-        self._apply(res)
+        self._control(
+            lambda: self.coordinator.api.set_outswitch(
+                self._address, jm00, self._preserve("gv01"), self._preserve("fe01")),
+            [("jm00", jm00)], verify=("jm00", jm00))
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self._set("1")

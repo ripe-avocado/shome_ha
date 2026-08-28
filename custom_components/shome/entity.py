@@ -1,6 +1,8 @@
 """Shared base entity for sHome."""
 from __future__ import annotations
 
+import asyncio
+import logging
 import time
 from typing import Any
 
@@ -9,6 +11,12 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, OPTIMISTIC_HOLD_SEC
 from .coordinator import ShomeCoordinator
+
+_LOGGER = logging.getLogger(__name__)
+
+# 제어 후 실제 반영 확인까지 대기(초)와 재전송 횟수
+CONFIRM_DELAY = 4.0
+CONFIRM_RETRIES = 2
 
 
 class ShomeDeviceEntity(CoordinatorEntity[ShomeCoordinator]):
@@ -86,3 +94,42 @@ class ShomeDeviceEntity(CoordinatorEntity[ShomeCoordinator]):
         self.async_write_ha_state()
         # 제어 직후 잠깐 빠른 폴링으로 연쇄/외부 변화 반영
         self.coordinator.activate_fast_poll()
+
+    def _control(self, make_call, pending: list, verify: tuple | None = None) -> None:
+        """제어 진입점: 즉시 UI 반영(optimistic) → 명령 전송 → 실제 반영 확인·재전송.
+
+        make_call: 매번 새 coroutine을 반환하는 callable (초기 전송/재전송에 재사용).
+        pending: [(attr, value), ...] 즉시 고정할 값들.
+        verify: (attr, target) 실제 상태가 target에 도달했는지 확인할 대상 (None이면 확인 안 함).
+        """
+        self._optimistic(*pending)
+        self.hass.async_create_task(self._send_and_confirm(make_call, verify))
+
+    async def _send_and_confirm(self, make_call, verify: tuple | None) -> None:
+        try:
+            self._apply(await make_call())
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("shome control send failed (%s/%s): %s", self._dtype, self._address, err)
+            return
+        if verify is None:
+            return
+        attr, target = verify
+        for _ in range(CONFIRM_RETRIES):
+            await asyncio.sleep(CONFIRM_DELAY)
+            try:
+                st = await self.coordinator.api.get_state(self._dtype, self._address)
+            except Exception:  # noqa: BLE001
+                return
+            if not isinstance(st, dict) or st.get(attr) is None:
+                return
+            if str(st.get(attr)) == str(target):
+                self._apply(st)          # 실측이 목표와 일치 → 확정
+                return
+            # 실제 기기가 목표에 도달 못 함 → 명령 유실로 보고 재전송
+            _LOGGER.debug("shome %s/%s %s=%s != %s, resending", self._dtype, self._address,
+                          attr, st.get(attr), target)
+            self._set_pending(attr, target)
+            try:
+                self._apply(await make_call())
+            except Exception:  # noqa: BLE001
+                return

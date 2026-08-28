@@ -77,9 +77,9 @@ class ShomeBoilerBl(ShomeDeviceEntity, ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         power = "1" if hvac_mode == HVACMode.HEAT else "0"
-        self._optimistic(("powerRoom", power))
-        res = await self.coordinator.api.set_boiler_bl_power(self._address, power, self._water())
-        self._apply(res)
+        self._control(
+            lambda: self.coordinator.api.set_boiler_bl_power(self._address, power, self._water()),
+            [("powerRoom", power)], verify=("powerRoom", power))
 
     async def async_turn_on(self) -> None:
         await self.async_set_hvac_mode(HVACMode.HEAT)
@@ -91,11 +91,10 @@ class ShomeBoilerBl(ShomeDeviceEntity, ClimateEntity):
         temp = kwargs.get("temperature")
         if temp is None:
             return
-        self._optimistic(("heatingDesireRoom", int(temp)))
-        res = await self.coordinator.api.set_one_function(
-            self._dtype, self._address, "heatingdesireroom", str(int(temp))
-        )
-        self._apply(res)
+        self._control(
+            lambda: self.coordinator.api.set_one_function(
+                self._dtype, self._address, "heatingdesireroom", str(int(temp))),
+            [("heatingDesireRoom", int(temp))], verify=("heatingDesireRoom", int(temp)))
 
 
 class ShomeBoilerBr(ShomeDeviceEntity, ClimateEntity):
@@ -127,9 +126,8 @@ class ShomeBoilerBr(ShomeDeviceEntity, ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         power = "1" if hvac_mode == HVACMode.HEAT else "0"
-        self._optimistic(("power", power))
-        res = await self.coordinator.api.set_power(self._dtype, self._address, power)
-        self._apply(res)
+        self._control(lambda: self.coordinator.api.set_power(self._dtype, self._address, power),
+                      [("power", power)], verify=("power", power))
 
     async def async_turn_on(self) -> None:
         await self.async_set_hvac_mode(HVACMode.HEAT)
@@ -141,11 +139,10 @@ class ShomeBoilerBr(ShomeDeviceEntity, ClimateEntity):
         temp = kwargs.get("temperature")
         if temp is None:
             return
-        self._optimistic(("heatingDesireRoom", int(temp)))
-        res = await self.coordinator.api.set_one_function(
-            self._dtype, self._address, "heatingdesireroom", str(int(temp))
-        )
-        self._apply(res)
+        self._control(
+            lambda: self.coordinator.api.set_one_function(
+                self._dtype, self._address, "heatingdesireroom", str(int(temp))),
+            [("heatingDesireRoom", int(temp))], verify=("heatingDesireRoom", int(temp)))
 
 
 class ShomeAircon(ShomeDeviceEntity, ClimateEntity):
@@ -177,9 +174,8 @@ class ShomeAircon(ShomeDeviceEntity, ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         power = "1" if hvac_mode == HVACMode.COOL else "0"
-        self._optimistic(("power", power))
-        res = await self.coordinator.api.set_power(self._dtype, self._address, power)
-        self._apply(res)
+        self._control(lambda: self.coordinator.api.set_power(self._dtype, self._address, power),
+                      [("power", power)], verify=("power", power))
 
     async def async_turn_on(self) -> None:
         await self.async_set_hvac_mode(HVACMode.COOL)
@@ -191,8 +187,7 @@ class ShomeAircon(ShomeDeviceEntity, ClimateEntity):
         temp = kwargs.get("temperature")
         if temp is None:
             return
-        self._optimistic(("desireTemp", int(temp)))
-        res = await self.coordinator.api.set_one_function(
-            self._dtype, self._address, "desiretemp", str(int(temp))
-        )
-        self._apply(res)
+        self._control(
+            lambda: self.coordinator.api.set_one_function(
+                self._dtype, self._address, "desiretemp", str(int(temp))),
+            [("desireTemp", int(temp))], verify=("desireTemp", int(temp)))
