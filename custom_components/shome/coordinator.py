@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import timedelta
 from typing import Any
 
@@ -40,6 +41,14 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.api = api
         # which device types actually returned data (discovered on first poll)
         self.present_types: list[str] = []
+        self._poll_count = 0
+        self._energy_ts = 0.0
+        self._energy_cache = None
+        self._expense_cache = None
+        # 에너지/관리비는 월 단위 데이터 → 30분마다만 갱신
+        self._energy_interval = 1800.0
+        # 새 기기 감지를 위해 20회마다 전체 타입 재스캔
+        self._full_rescan_every = 20
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -69,8 +78,11 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             except ShomeConnectionError as err:
                 _LOGGER.debug("all_list failed: %s", err)
 
-            # per-type monitoring
-            for dtype in ALL_STATE_TYPES:
+            # per-type monitoring — 첫 폴링/주기적 재스캔은 전체, 평소엔 존재하는 타입만 조회해 요청 절감
+            self._poll_count += 1
+            full_scan = (not self.present_types) or (self._poll_count % self._full_rescan_every == 0)
+            scan_types = ALL_STATE_TYPES if full_scan else self.present_types
+            for dtype in scan_types:
                 try:
                     res = await self.api.get_all_state(dtype)
                 except ShomeConnectionError as err:
@@ -87,7 +99,8 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     bucket[addr] = mon
                 data["devices"][dtype] = bucket
 
-            self.present_types = list(data["devices"].keys())
+            if full_scan:
+                self.present_types = list(data["devices"].keys())
 
             # home mode
             try:
@@ -95,16 +108,20 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             except ShomeConnectionError:
                 pass
 
-            # energy / expense (best-effort; may not exist for every complex)
-            # towmond returns all energy types (전기/수도/가스...) with latest month = current.
-            try:
-                data["energy"] = await self.api.get_energy_towmond()
-            except ShomeConnectionError:
-                pass
-            try:
-                data["expense"] = await self.api.get_expense()
-            except ShomeConnectionError:
-                pass
+            # energy / expense — 월 단위 데이터라 30분마다만 실제 조회, 그 외엔 캐시 사용
+            now = time.monotonic()
+            if self._energy_cache is None or (now - self._energy_ts) >= self._energy_interval:
+                try:
+                    self._energy_cache = await self.api.get_energy_towmond()
+                except ShomeConnectionError:
+                    pass
+                try:
+                    self._expense_cache = await self.api.get_expense()
+                except ShomeConnectionError:
+                    pass
+                self._energy_ts = now
+            data["energy"] = self._energy_cache
+            data["expense"] = self._expense_cache
 
             return data
 
