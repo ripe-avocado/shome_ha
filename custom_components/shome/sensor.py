@@ -83,10 +83,10 @@ async def async_setup_entry(
 
 
 class ShomeEnergySensor(CoordinatorEntity[ShomeCoordinator], SensorEntity):
-    """월별 사용량 (최신월 usageAmount)."""
+    """이번 달 누적 사용량 (매월 0으로 리셋). total_increasing → HA가 월간 리셋을 자동 감지."""
 
     _attr_has_entity_name = True
-    _attr_state_class = SensorStateClass.TOTAL
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
 
     def __init__(self, coordinator: ShomeCoordinator, etype: str) -> None:
         super().__init__(coordinator)
