@@ -40,8 +40,8 @@ class ShomeGasValve(ShomeDeviceEntity, ValveEntity):
 
     @property
     def is_closed(self) -> bool | None:
-        p = self._state.get("power")
+        p = self._get("power")
         return None if p in (None, "") else str(p) == "0"
 
     async def async_close_valve(self, **kwargs: Any) -> None:
-        self._apply(await self.coordinator.api.set_power(self._dtype, self._address, "0"))
+        r = await self.coordinator.api.set_power(self._dtype, self._address, "0"); self._set_pending("power", "0"); self._apply(r)

@@ -45,7 +45,7 @@ class ShomeOutSwitch(ShomeDeviceEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool | None:
-        v = self._state.get("jm00")
+        v = self._get("jm00")
         return None if v is None else str(v) == "1"
 
     def _preserve(self, key: str) -> str:
@@ -57,6 +57,7 @@ class ShomeOutSwitch(ShomeDeviceEntity, SwitchEntity):
         res = await self.coordinator.api.set_outswitch(
             self._address, jm00, self._preserve("gv01"), self._preserve("fe01")
         )
+        self._set_pending("jm00", jm00)
         self._apply(res)
 
     async def async_turn_on(self, **kwargs: Any) -> None:

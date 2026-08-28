@@ -46,12 +46,12 @@ class ShomeFan(ShomeDeviceEntity, FanEntity):
 
     @property
     def is_on(self) -> bool | None:
-        p = self._state.get("power")
+        p = self._get("power")
         return None if p is None else str(p) == "1"
 
     @property
     def percentage(self) -> int | None:
-        fr = self._state.get("flowRate")
+        fr = self._get("flowRate")
         if fr in (None, "", "0"):
             return 0
         if str(fr) not in FAN_SPEEDS:
@@ -64,16 +64,19 @@ class ShomeFan(ShomeDeviceEntity, FanEntity):
             return
         value = percentage_to_ordered_list_item(FAN_SPEEDS, percentage)
         res = await self.coordinator.api.set_one_function(self._dtype, self._address, "flowrate", value)
+        self._set_pending("flowRate", value)
         self._apply(res)
 
     async def async_turn_on(
         self, percentage: int | None = None, preset_mode: str | None = None, **kwargs: Any
     ) -> None:
         res = await self.coordinator.api.set_power(self._dtype, self._address, "1")
+        self._set_pending("power", "1")
         self._apply(res)
         if percentage:
             await self.async_set_percentage(percentage)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         res = await self.coordinator.api.set_power(self._dtype, self._address, "0")
+        self._set_pending("power", "0")
         self._apply(res)

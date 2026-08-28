@@ -55,15 +55,17 @@ class ShomeOnOffLight(ShomeDeviceEntity, LightEntity):
 
     @property
     def is_on(self) -> bool | None:
-        p = self._state.get("power")
+        p = self._get("power")
         return None if p is None else str(p) == "1"
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         res = await self.coordinator.api.set_power(self._dtype, self._address, "1")
+        self._set_pending("power", "1")
         self._apply(res)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         res = await self.coordinator.api.set_power(self._dtype, self._address, "0")
+        self._set_pending("power", "0")
         self._apply(res)
 
 
@@ -76,15 +78,15 @@ class ShomeDimmingLight(ShomeDeviceEntity, LightEntity):
 
     @property
     def is_on(self) -> bool | None:
-        p = self._state.get("power")
-        lvl = self._state.get("level")
+        p = self._get("power")
+        lvl = self._get("level")
         if p is not None:
             return str(p) == "1"
         return bool(lvl and int(lvl) > 0)
 
     @property
     def brightness(self) -> int | None:
-        lvl = self._state.get("level")
+        lvl = self._get("level")
         if lvl in (None, ""):
             return None
         return round(int(lvl) / DIM_MAX * 255)
@@ -93,12 +95,16 @@ class ShomeDimmingLight(ShomeDeviceEntity, LightEntity):
         if ATTR_BRIGHTNESS in kwargs:
             level = max(1, round(kwargs[ATTR_BRIGHTNESS] / 255 * DIM_MAX))
             res = await self.coordinator.api.set_function(self._dtype, self._address, str(level))
+            self._set_pending("level", level)
+            self._set_pending("power", "1")
         else:
             res = await self.coordinator.api.set_power(self._dtype, self._address, "1")
+            self._set_pending("power", "1")
         self._apply(res)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         res = await self.coordinator.api.set_power(self._dtype, self._address, "0")
+        self._set_pending("power", "0")
         self._apply(res)
 
 
@@ -113,15 +119,15 @@ class ShomeSensitiveLight(ShomeDeviceEntity, LightEntity):
 
     @property
     def is_on(self) -> bool | None:
-        p = self._state.get("power")
+        p = self._get("power")
         if p is not None:
             return str(p) == "1"
-        mode = self._state.get("mode")
+        mode = self._get("mode")
         return None if mode is None else str(mode) != "0"
 
     @property
     def effect(self) -> str | None:
-        return SJM_MODES.get(str(self._state.get("mode")))
+        return SJM_MODES.get(str(self._get("mode")))
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         if ATTR_EFFECT in kwargs and kwargs[ATTR_EFFECT] in SJM_MODES_REV:

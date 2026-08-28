@@ -61,15 +61,15 @@ class ShomeBoilerBl(ShomeDeviceEntity, ClimateEntity):
 
     @property
     def current_temperature(self) -> float | None:
-        return _to_int(self._state.get("heatingRoom"))
+        return _to_int(self._get("heatingRoom"))
 
     @property
     def target_temperature(self) -> float | None:
-        return _to_int(self._state.get("heatingDesireRoom"))
+        return _to_int(self._get("heatingDesireRoom"))
 
     @property
     def hvac_mode(self) -> HVACMode:
-        return HVACMode.HEAT if str(self._state.get("powerRoom")) == "1" else HVACMode.OFF
+        return HVACMode.HEAT if str(self._get("powerRoom")) == "1" else HVACMode.OFF
 
     def _water(self) -> str:
         w = self._state.get("powerWater")
@@ -78,6 +78,7 @@ class ShomeBoilerBl(ShomeDeviceEntity, ClimateEntity):
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         power = "1" if hvac_mode == HVACMode.HEAT else "0"
         res = await self.coordinator.api.set_boiler_bl_power(self._address, power, self._water())
+        self._set_pending("powerRoom", power)
         self._apply(res)
 
     async def async_turn_on(self) -> None:
@@ -93,6 +94,7 @@ class ShomeBoilerBl(ShomeDeviceEntity, ClimateEntity):
         res = await self.coordinator.api.set_one_function(
             self._dtype, self._address, "heatingdesireroom", str(int(temp))
         )
+        self._set_pending("heatingDesireRoom", int(temp))
         self._apply(res)
 
 
@@ -113,19 +115,20 @@ class ShomeBoilerBr(ShomeDeviceEntity, ClimateEntity):
 
     @property
     def current_temperature(self) -> float | None:
-        return _to_int(self._state.get("heatingRoom"))
+        return _to_int(self._get("heatingRoom"))
 
     @property
     def target_temperature(self) -> float | None:
-        return _to_int(self._state.get("heatingDesireRoom"))
+        return _to_int(self._get("heatingDesireRoom"))
 
     @property
     def hvac_mode(self) -> HVACMode:
-        return HVACMode.HEAT if str(self._state.get("power")) == "1" else HVACMode.OFF
+        return HVACMode.HEAT if str(self._get("power")) == "1" else HVACMode.OFF
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         power = "1" if hvac_mode == HVACMode.HEAT else "0"
         res = await self.coordinator.api.set_power(self._dtype, self._address, power)
+        self._set_pending("power", power)
         self._apply(res)
 
     async def async_turn_on(self) -> None:
@@ -141,6 +144,7 @@ class ShomeBoilerBr(ShomeDeviceEntity, ClimateEntity):
         res = await self.coordinator.api.set_one_function(
             self._dtype, self._address, "heatingdesireroom", str(int(temp))
         )
+        self._set_pending("heatingDesireRoom", int(temp))
         self._apply(res)
 
 
@@ -161,19 +165,20 @@ class ShomeAircon(ShomeDeviceEntity, ClimateEntity):
 
     @property
     def current_temperature(self) -> float | None:
-        return _to_int(self._state.get("currentTemp"))
+        return _to_int(self._get("currentTemp"))
 
     @property
     def target_temperature(self) -> float | None:
-        return _to_int(self._state.get("desireTemp"))
+        return _to_int(self._get("desireTemp"))
 
     @property
     def hvac_mode(self) -> HVACMode:
-        return HVACMode.COOL if str(self._state.get("power")) == "1" else HVACMode.OFF
+        return HVACMode.COOL if str(self._get("power")) == "1" else HVACMode.OFF
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         power = "1" if hvac_mode == HVACMode.COOL else "0"
         res = await self.coordinator.api.set_power(self._dtype, self._address, power)
+        self._set_pending("power", power)
         self._apply(res)
 
     async def async_turn_on(self) -> None:
@@ -189,4 +194,5 @@ class ShomeAircon(ShomeDeviceEntity, ClimateEntity):
         res = await self.coordinator.api.set_one_function(
             self._dtype, self._address, "desiretemp", str(int(temp))
         )
+        self._set_pending("desireTemp", int(temp))
         self._apply(res)
