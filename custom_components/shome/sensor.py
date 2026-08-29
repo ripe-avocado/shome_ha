@@ -65,6 +65,11 @@ async def async_setup_entry(
         if etype in ENERGY_KINDS:
             entities.append(ShomeEnergySensor(coordinator, etype))
 
+    # 관리비 sensor (지원 단지에서 expense 데이터가 있을 때만 생성)
+    expense = coordinator.data.get("expense")
+    if isinstance(expense, dict) and (expense.get("monthList") or []):
+        entities.append(ShomeExpenseSensor(coordinator))
+
     # 실내환경 센서 (legacy 세대, 실험적): temperature/humidity/co2/fineDust 필드가 있는 기기
     for dev in coordinator.data.get("legacy", []) or []:
         if not isinstance(dev, dict):
@@ -80,6 +85,61 @@ async def async_setup_entry(
                 )
     async_add_entities(entities)
 
+
+
+class ShomeExpenseSensor(CoordinatorEntity[ShomeCoordinator], SensorEntity):
+    """관리비 (최신월 합계). 항목별 내역은 속성으로."""
+
+    _attr_has_entity_name = True
+    _attr_name = "관리비"
+    _attr_icon = "mdi:receipt-text"
+    _attr_native_unit_of_measurement = "원"
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_state_class = SensorStateClass.TOTAL
+
+    def __init__(self, coordinator: ShomeCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_expense"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{coordinator.entry.entry_id}_energy")},
+            name="sHome 에너지",
+            manufacturer="Samsung SDS / Zigbang",
+        )
+
+    def _latest(self) -> dict[str, Any]:
+        exp = self.coordinator.data.get("expense") or {}
+        months = exp.get("monthList") or []
+        return months[-1] if months else {}
+
+    @staticmethod
+    def _num(v) -> float | None:
+        try:
+            return float(str(v).replace(",", "").strip())
+        except (TypeError, ValueError):
+            return None
+
+    @property
+    def native_value(self) -> float | None:
+        fees = self._latest().get("feeList") or []
+        total = 0.0
+        found = False
+        for it in fees:
+            n = self._num(it.get("value"))
+            if n is not None:
+                total += n
+                found = True
+        return total if found else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        m = self._latest()
+        attrs: dict[str, Any] = {}
+        if m.get("year") and m.get("month"):
+            attrs["기준월"] = f"{m['year']}-{int(m['month']):02d}"
+        for it in (m.get("feeList") or []):
+            if it.get("name"):
+                attrs[str(it["name"])] = it.get("value")
+        return attrs
 
 
 class ShomeEnergySensor(CoordinatorEntity[ShomeCoordinator], SensorEntity):
