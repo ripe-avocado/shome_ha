@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import ShomeApi, ShomeAuthError, ShomeConnectionError
+from .api import ShomeApi, ShomeAuthError, ShomeConnectionError, ShomeError
 from .const import (
     ALL_STATE_TYPES,
     CONF_SCAN_INTERVAL,
@@ -74,20 +74,29 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "home_mode": prev.get("home_mode") or {},
                 "energy": None, "expense": None,
                 "legacy": prev.get("legacy") or [],
+                "legacy_energy": prev.get("legacy_energy"),
             }
 
-            # --- LEGACY (구형 세대): MHPS가 아니면 통합 기기목록으로 열거 (실험적) ---
+            # --- LEGACY (구형 세대, isMhpsUser=0): MHPS 전용 경로는 절대 호출하지 않는다 ---
+            # (get_home_mode/energy 등은 v18/mhps/* 라 레거시 계정에선 401 ERROR0007 → issue #1)
             if not self.api.is_mhps:
                 try:
                     res = await self.api.get_legacy_devices()
-                    data["legacy"] = res.get("deviceList", []) if isinstance(res, dict) else []
-                except (ShomeConnectionError, Exception) as err:  # noqa: BLE001
+                    if isinstance(res, dict) and res.get("deviceList"):
+                        data["legacy"] = res["deviceList"]
+                except ShomeError as err:
                     _LOGGER.debug("legacy device list failed: %s", err)
-                # 홈모드/에너지는 legacy에서도 시도
-                try:
-                    data["home_mode"] = await self.api.get_home_mode()
-                except ShomeConnectionError:
-                    pass
+                # 레거시 검침: v18/complex/{homeId}/energy-amount/{year}/{month} (30분 캐시)
+                now = time.monotonic()
+                if self._energy_cache is None or (now - self._energy_ts) >= self._energy_interval:
+                    from datetime import datetime as _dt
+                    n = _dt.now()
+                    try:
+                        self._energy_cache = await self.api.get_legacy_energy(n.year, n.month)
+                    except ShomeError as err:
+                        _LOGGER.debug("legacy energy failed: %s", err)
+                    self._energy_ts = now
+                data["legacy_energy"] = self._energy_cache
                 self.present_types = []
                 return data
 
@@ -124,25 +133,25 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if full_scan:
                 self.present_types = list(data["devices"].keys())
 
-            # home mode — 실패 시 이전 값 유지
+            # home mode — 실패 시 이전 값 유지 (기능 미지원 단지의 401도 무시, 토큰 갱신은 기기 호출이 담당)
             try:
                 hm = await self.api.get_home_mode()
                 if isinstance(hm, dict) and hm.get("modeList"):
                     data["home_mode"] = hm
-            except ShomeConnectionError:
-                pass
+            except ShomeError as err:
+                _LOGGER.debug("home_mode failed: %s", err)
 
             # energy / expense — 월 단위 데이터라 30분마다만 실제 조회, 그 외엔 캐시 사용
             now = time.monotonic()
             if self._energy_cache is None or (now - self._energy_ts) >= self._energy_interval:
                 try:
                     self._energy_cache = await self.api.get_energy_towmond()
-                except ShomeConnectionError:
-                    pass
+                except ShomeError as err:
+                    _LOGGER.debug("energy failed: %s", err)
                 try:
                     self._expense_cache = await self.api.get_expense()
-                except ShomeConnectionError:
-                    pass
+                except ShomeError as err:
+                    _LOGGER.debug("expense failed: %s", err)
                 self._energy_ts = now
             data["energy"] = self._energy_cache
             data["expense"] = self._expense_cache

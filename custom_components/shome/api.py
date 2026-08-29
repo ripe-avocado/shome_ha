@@ -286,6 +286,17 @@ class ShomeApi:
             raise ShomeError("legacy wallPadId(ihdId) unavailable")
         return await self._get_auth(f"v16/settings/{wp}/devices/", wp)
 
+    async def get_legacy_energy(self, year: int, month: int) -> dict:
+        """레거시 세대 검침: GET v18/complex/{homeId}/energy-amount/{year}/{month}.
+        수도/온수/난방(ton), 전기(kWh) 12개월치 반환 (issue #1 제보)."""
+        home_id = self.login_vo.get("homeId")
+        if not home_id:
+            raise ShomeError("legacy homeId unavailable")
+        return await self._get_auth(
+            f"v18/complex/{home_id}/energy-amount/{year}/{month}",
+            home_id, str(year), str(month),
+        )
+
     async def legacy_gasvalve_close(self, thng_id: str) -> dict:
         """PUT /v16/settings/gasvalves/{thngId}/closing/ — 가스밸브 닫기(안전상 닫기만)."""
         return await self._request(
