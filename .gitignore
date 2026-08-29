@@ -31,3 +31,6 @@ venv/
 
 # macOS
 .DS_Store
+
+# 타 통합 아이콘 참고본(커밋 금지)
+brand_ref/
