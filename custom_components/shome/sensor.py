@@ -53,6 +53,15 @@ ENERGY_KINDS: dict[str, EnergyKind] = {
     "5": EnergyKind("온수 사용량", UnitOfVolume.CUBIC_METERS, SensorDeviceClass.WATER, "mdi:water-thermometer"),
 }
 
+# 레거시(v18/complex/.../energy-amount) 필드 매핑 (issue #1, ton=㎥)
+LEGACY_ENERGY: list[tuple[str, EnergyKind]] = [
+    ("electric", EnergyKind("전기 사용량", UnitOfEnergy.KILO_WATT_HOUR, SensorDeviceClass.ENERGY, "mdi:flash")),
+    ("water", EnergyKind("수도 사용량", UnitOfVolume.CUBIC_METERS, SensorDeviceClass.WATER, "mdi:water")),
+    ("gas", EnergyKind("가스 사용량", UnitOfVolume.CUBIC_METERS, SensorDeviceClass.GAS, "mdi:fire")),
+    ("heating", EnergyKind("난방 사용량", UnitOfVolume.CUBIC_METERS, None, "mdi:radiator")),
+    ("hotwater", EnergyKind("온수 사용량", UnitOfVolume.CUBIC_METERS, SensorDeviceClass.WATER, "mdi:water-thermometer")),
+]
+
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ShomeConfigEntry, async_add_entities: AddEntitiesCallback
@@ -64,6 +73,14 @@ async def async_setup_entry(
         etype = str(item.get("energyType"))
         if etype in ENERGY_KINDS:
             entities.append(ShomeEnergySensor(coordinator, etype))
+
+    # 레거시 에너지 sensor (구형 세대: legacy_energy.data[0] 필드 기반)
+    le = coordinator.data.get("legacy_energy")
+    if isinstance(le, dict) and (le.get("data") or []):
+        latest = le["data"][0]
+        for key, kind in LEGACY_ENERGY:
+            if f"{key}_amount" in latest:
+                entities.append(ShomeLegacyEnergySensor(coordinator, key, kind))
 
     # 관리비 sensor (지원 단지에서 expense 데이터가 있을 때만 생성)
     expense = coordinator.data.get("expense")
@@ -85,6 +102,54 @@ async def async_setup_entry(
                 )
     async_add_entities(entities)
 
+
+
+class ShomeLegacyEnergySensor(CoordinatorEntity[ShomeCoordinator], SensorEntity):
+    """레거시 세대 검침 사용량 (이번 달, 매월 리셋 → total_increasing)."""
+
+    _attr_has_entity_name = True
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+
+    def __init__(self, coordinator: ShomeCoordinator, key: str, kind: "EnergyKind") -> None:
+        super().__init__(coordinator)
+        self._key = key
+        self._attr_name = kind.name
+        self._attr_native_unit_of_measurement = kind.unit
+        self._attr_device_class = kind.device_class
+        self._attr_icon = kind.icon
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_lenergy_{key}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{coordinator.entry.entry_id}_energy")},
+            name="sHome 에너지",
+            manufacturer="Samsung SDS / Zigbang",
+        )
+
+    def _latest(self) -> dict[str, Any]:
+        le = self.coordinator.data.get("legacy_energy") or {}
+        rows = le.get("data") or []
+        return rows[0] if rows else {}
+
+    @property
+    def native_value(self) -> float | None:
+        v = self._latest().get(f"{self._key}_amount")
+        try:
+            return round(float(v), 2)
+        except (TypeError, ValueError):
+            return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        m = self._latest()
+        attrs: dict[str, Any] = {}
+        if m.get("search_year") and m.get("search_month"):
+            attrs["기준월"] = f"{m['search_year']}-{int(m['search_month']):02d}"
+        per = m.get(f"{self._key}_preMonth_per")
+        if per is not None:
+            try:
+                attrs["전월대비_%"] = round(float(per), 1)
+            except (TypeError, ValueError):
+                pass
+        return attrs
 
 
 class ShomeExpenseSensor(CoordinatorEntity[ShomeCoordinator], SensorEntity):

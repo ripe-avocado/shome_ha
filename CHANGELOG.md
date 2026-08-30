@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.8.2 (2026-08-30)
+- 레거시 세대(#1) 에너지 센서 추가: v18/complex/{homeId}/energy-amount 응답(electric/water/gas/heating/hotwater_amount)을 전기/수도/가스/난방/온수 센서로 노출. ton=㎥, total_increasing(월간 리셋 자동). 제보자(@super-midas) 응답 구조 제공으로 구현.
+
 ## 0.8.1 (2026-08-29)
 - 버그 수정(#1): 레거시 계정(isMhpsUser=0)에서 MHPS 전용 경로(get_home_mode 등)를 호출해 401(ERROR0007)로 설정이 실패하던 문제. 레거시 브랜치에서 MHPS 전용 호출 제거, 옵션 호출은 인증오류까지 방어(기능별 401이 setup을 죽이지 않음). 기기 호출의 401은 종전대로 재로그인 트리거.
 - 레거시 검침 엔드포인트 추가: v18/complex/{homeId}/energy-amount/{year}/{month} (응답 매핑은 제보자 검증 후 반영 예정).
