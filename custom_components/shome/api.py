@@ -45,6 +45,10 @@ class ShomeConnectionError(ShomeError):
     """Network/HTTP error."""
 
 
+class ShomeTimeoutError(ShomeConnectionError):
+    """Server did not answer in time."""
+
+
 def _utcnow() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
 
@@ -126,7 +130,7 @@ class ShomeApi:
         try:
             async with self._session.request(
                 method, url, params=params, headers=self._headers(),
-                timeout=aiohttp.ClientTimeout(total=20),
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as resp:
                 text = await resp.text()
                 if resp.status == 401:
@@ -137,6 +141,9 @@ class ShomeApi:
                     return await resp.json(content_type=None)
                 except Exception:  # noqa: BLE001
                     return text
+        except TimeoutError as err:
+            # 서버가 가끔 응답 없이 멈춘다 → 폴링 전체가 'Timeout fetching'으로 죽지 않게 변환
+            raise ShomeTimeoutError(f"timeout: {path}") from err
         except aiohttp.ClientError as err:
             raise ShomeConnectionError(str(err)) from err
 

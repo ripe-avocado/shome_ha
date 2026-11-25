@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import ShomeApi, ShomeAuthError, ShomeConnectionError, ShomeError
+from .api import ShomeApi, ShomeAuthError, ShomeConnectionError, ShomeError, ShomeTimeoutError
 from .const import (
     ALL_STATE_TYPES,
     CONF_SCAN_INTERVAL,
@@ -116,6 +116,10 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             for dtype in scan_types:
                 try:
                     res = await self.api.get_all_state(dtype)
+                except ShomeTimeoutError as err:
+                    # 서버 무응답 — 남은 타입은 이전 값 유지하고 다음 폴링에서 다시
+                    _LOGGER.debug("all_state %s timeout, skip rest: %s", dtype, err)
+                    break
                 except ShomeConnectionError as err:
                     _LOGGER.debug("all_state %s failed: %s", dtype, err)
                     continue

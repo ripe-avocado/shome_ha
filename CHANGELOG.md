@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.3 (2026-11-25)
+- 버그 수정: sHome 서버가 응답 없이 멈출 때 aiohttp TimeoutError를 못 잡아 폴링 전체가 실패(`Timeout fetching shome data`)하고 HA 시작 시 설정이 오래 지연되던 문제. 타임아웃을 연결 오류로 처리하고, 기기 조회 중 타임아웃이면 남은 타입은 이전 값 유지 후 다음 폴링에서 재시도. 요청 타임아웃 20초 → 10초.
+- HA 2026.11 deprecation 경고 정리: DeviceInfo `via_device` 제거, `CONCENTRATION_*` 상수 대신 단위 문자열 사용.
+
 ## 0.8.2 (2026-08-30)
 - 레거시 세대(#1) 에너지 센서 추가: v18/complex/{homeId}/energy-amount 응답(electric/water/gas/heating/hotwater_amount)을 전기/수도/가스/난방/온수 센서로 노출. ton=㎥, total_increasing(월간 리셋 자동). 제보자(@super-midas) 응답 구조 제공으로 구현.
 

@@ -38,7 +38,6 @@ class ShomeDeviceEntity(CoordinatorEntity[ShomeCoordinator]):
             name=name or f"{dtype} {address}",
             manufacturer="Samsung SDS / Zigbang",
             model=dtype,
-            via_device=(DOMAIN, coordinator.entry.entry_id),
         )
 
     @property

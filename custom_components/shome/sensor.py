@@ -10,8 +10,6 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import (
-    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
-    CONCENTRATION_PARTS_PER_MILLION,
     PERCENTAGE,
     UnitOfEnergy,
     UnitOfTemperature,
@@ -30,8 +28,8 @@ from .coordinator import ShomeCoordinator
 ENV_METRICS = [
     ("temperature", "온도", UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE),
     ("humidity", "습도", PERCENTAGE, SensorDeviceClass.HUMIDITY),
-    ("co2", "CO2", CONCENTRATION_PARTS_PER_MILLION, SensorDeviceClass.CO2),
-    ("fineDust", "미세먼지", CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, SensorDeviceClass.PM25),
+    ("co2", "CO2", "ppm", SensorDeviceClass.CO2),
+    ("fineDust", "미세먼지", "μg/m³", SensorDeviceClass.PM25),
 ]
 
 
