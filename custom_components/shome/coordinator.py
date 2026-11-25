@@ -1,6 +1,7 @@
 """DataUpdateCoordinator for sHome."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from datetime import timedelta
@@ -10,7 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import ShomeApi, ShomeAuthError, ShomeConnectionError, ShomeError, ShomeTimeoutError
+from .api import ShomeApi, ShomeAuthError, ShomeConnectionError, ShomeError
 from .const import (
     ALL_STATE_TYPES,
     CONF_SCAN_INTERVAL,
@@ -113,16 +114,17 @@ class ShomeCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._poll_count += 1
             full_scan = (not self.present_types) or (self._poll_count % self._full_rescan_every == 0)
             scan_types = ALL_STATE_TYPES if full_scan else self.present_types
-            for dtype in scan_types:
+            # 병렬 조회 (#2): 월패드에 없는/미연결 기기는 응답이 4~10초씩 걸려,
+            # 순차로 하면 첫 설정이 HA의 60초 제한을 넘겨 취소된다.
+            async def _fetch(dtype: str) -> Any:
                 try:
-                    res = await self.api.get_all_state(dtype)
-                except ShomeTimeoutError as err:
-                    # 서버 무응답 — 남은 타입은 이전 값 유지하고 다음 폴링에서 다시
-                    _LOGGER.debug("all_state %s timeout, skip rest: %s", dtype, err)
-                    break
+                    return await self.api.get_all_state(dtype)
                 except ShomeConnectionError as err:
                     _LOGGER.debug("all_state %s failed: %s", dtype, err)
-                    continue
+                    return None
+
+            results = await asyncio.gather(*(_fetch(d) for d in scan_types))
+            for dtype, res in zip(scan_types, results):
                 if not isinstance(res, dict):
                     continue
                 dev_list = res.get("deviceList") or []

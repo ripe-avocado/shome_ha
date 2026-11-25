@@ -130,7 +130,7 @@ class ShomeApi:
         try:
             async with self._session.request(
                 method, url, params=params, headers=self._headers(),
-                timeout=aiohttp.ClientTimeout(total=10),
+                timeout=aiohttp.ClientTimeout(total=20),
             ) as resp:
                 text = await resp.text()
                 if resp.status == 401:
